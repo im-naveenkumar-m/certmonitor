@@ -1,0 +1,22 @@
+services:
+
+  db:
+    image: postgres:17
+
+    container_name: certmonitor-db
+
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: certmonitor
+      POSTGRES_USER: certmonitor
+      POSTGRES_PASSWORD: CertMonitor123!
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
