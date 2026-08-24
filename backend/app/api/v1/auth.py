@@ -7,6 +7,7 @@ from app.auth.service import authenticate_user
 from app.db.session import get_db
 from app.schemas.auth import Token
 
+
 router = APIRouter()
 
 
@@ -27,8 +28,9 @@ def login(
             detail="Invalid username or password",
         )
 
-    token = create_access_token(user.username)
+    access_token = create_access_token(user.username)
 
     return Token(
-        access_token=token,
+        access_token=access_token,
+        token_type="bearer",
     )
