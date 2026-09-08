@@ -1,7 +1,8 @@
-from app.models.base import Base
-
-# Import all models so Alembic can discover them
+from app.models import Base
 from app.models.user import User
+from app.models.domain import Domain
+from app.models.certificate import Certificate
+
 
 __all__ = [
     "Base",
