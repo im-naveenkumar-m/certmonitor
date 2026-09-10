@@ -17,7 +17,9 @@ from app.services.domain import (
     get_domains,
     update_domain,
 )
-
+from fastapi import HTTPException
+from app.services.certificate import scan_domain_certificate
+from app.schemas.certificate import CertificateResponse
 
 router = APIRouter(
     prefix="/domains",
@@ -143,3 +145,36 @@ def delete(
     delete_domain(db, domain)
 
     return None
+
+@router.post(
+    "/{domain_id}/scan",
+    response_model=CertificateResponse,
+)
+def scan_domain(
+    domain_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    domain = get_domain(db, domain_id)
+
+    if domain is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Domain not found",
+        )
+
+    if not domain.enabled:
+        raise HTTPException(
+            status_code=400,
+            detail="Domain is disabled",
+        )
+
+    try:
+        certificate = scan_domain_certificate(db, domain)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Certificate scan failed: {str(exc)}",
+        )
+
+    return certificate
