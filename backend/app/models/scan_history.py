@@ -35,6 +35,12 @@ class ScanHistory(Base, TimestampMixin):
         Boolean,
         nullable=False,
     )
+    
+    certificate_changed: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
 
     days_remaining: Mapped[int | None] = mapped_column(
         Integer,

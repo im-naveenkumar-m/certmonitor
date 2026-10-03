@@ -24,6 +24,12 @@ class Certificate(Base, TimestampMixin):
         nullable=False,
     )
 
+    fingerprint_sha256: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        index=True,
+    )
+    
     issuer: Mapped[str] = mapped_column(
         String(500),
         nullable=False,

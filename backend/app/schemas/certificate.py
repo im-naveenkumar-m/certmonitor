@@ -9,6 +9,7 @@ class CertificateResponse(BaseModel):
     id: int
     domain_id: int
     serial_number: str
+    fingerprint_sha256: str
     issuer: str
     subject: str
     valid_from: datetime
