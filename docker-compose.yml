@@ -1,44 +1,37 @@
 services:
-
   db:
     image: postgres:17
-
     container_name: certmonitor-db
-
     restart: unless-stopped
-
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-
-    ports:
-      - "5432:5432"
-
     volumes:
       - postgres_data:/var/lib/postgresql/data
-
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   backend:
     build:
       context: ./backend
-
     container_name: certmonitor-backend
-
     restart: unless-stopped
-
     env_file:
       - ./backend/.env
-
     depends_on:
-      - db
-
-    ports:
-      - "8000:8000"
-
+      db:
+        condition: service_healthy
     volumes:
       - ./backend:/app
-
     command:
       [
         "uvicorn",
@@ -48,25 +41,31 @@ services:
         "--port",
         "8000"
       ]
-
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/', timeout=3)"
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   scheduler:
     build:
       context: ./backend
-
     container_name: certmonitor-scheduler
-
     restart: unless-stopped
-
     env_file:
       - ./backend/.env
-
     depends_on:
-      - db
-
+      db:
+        condition: service_healthy
     volumes:
       - ./backend:/app
-
     command:
       [
         "python",
@@ -74,6 +73,30 @@ services:
         "app.scheduler.worker"
       ]
 
-
+  nginx:
+    image: nginx:alpine
+    container_name: certmonitor-nginx
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--spider",
+          "http://127.0.0.1/"
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 volumes:
   postgres_data:
