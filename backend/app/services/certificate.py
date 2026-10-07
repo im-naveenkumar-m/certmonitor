@@ -92,3 +92,13 @@ def scan_domain_certificate(
         db.commit()
 
         raise
+
+def get_certificate_by_domain(
+    db: Session,
+    domain_id: int,
+) -> Certificate | None:
+    return (
+        db.query(Certificate)
+        .filter(Certificate.domain_id == domain_id)
+        .first()
+    )

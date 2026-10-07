@@ -17,7 +17,7 @@ from app.services.domain import (
     get_domains,
     update_domain,
 )
-from fastapi import HTTPException
+
 from app.services.certificate import scan_domain_certificate
 from app.schemas.certificate import CertificateResponse
 

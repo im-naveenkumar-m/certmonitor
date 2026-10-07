@@ -3,6 +3,11 @@ from fastapi import FastAPI
 from app.api.v1.auth import router as auth_router
 from app.api.v1.users import router as users_router
 from app.api.v1.domains import router as domain_router
+from app.api.v1.certificates import router as certificate_router
+from app.api.v1.scan_history import (
+    router as scan_history_router
+)
+
 
 app = FastAPI(
     title="CertMonitor API",
@@ -26,8 +31,20 @@ app.include_router(
     tags=["Domains"],
 )
 
+app.include_router(
+    certificate_router,
+    prefix="/api/v1",
+    tags=["Certificates"],
+)
+
 @app.get("/")
 def root():
     return {
         "message": "Welcome to CertMonitor API"
     }
+
+app.include_router(
+    scan_history_router,
+    prefix="/api/v1",
+    tags=["Scan History"],
+)

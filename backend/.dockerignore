@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+.git/
+.gitignore
+Dockerfile
+test_*.py
+tests/

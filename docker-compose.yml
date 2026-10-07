@@ -8,15 +8,72 @@ services:
     restart: unless-stopped
 
     environment:
-      POSTGRES_DB: certmonitor
-      POSTGRES_USER: certmonitor
-      POSTGRES_PASSWORD: CertMonitor123!
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
 
     ports:
       - "5432:5432"
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+
+  backend:
+    build:
+      context: ./backend
+
+    container_name: certmonitor-backend
+
+    restart: unless-stopped
+
+    env_file:
+      - ./backend/.env
+
+    depends_on:
+      - db
+
+    ports:
+      - "8000:8000"
+
+    volumes:
+      - ./backend:/app
+
+    command:
+      [
+        "uvicorn",
+        "app.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ]
+
+
+  scheduler:
+    build:
+      context: ./backend
+
+    container_name: certmonitor-scheduler
+
+    restart: unless-stopped
+
+    env_file:
+      - ./backend/.env
+
+    depends_on:
+      - db
+
+    volumes:
+      - ./backend:/app
+
+    command:
+      [
+        "python",
+        "-m",
+        "app.scheduler.worker"
+      ]
+
 
 volumes:
   postgres_data:
