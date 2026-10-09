@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
-
 from sqlalchemy.orm import Session
-
+from app.models.certificate import Certificate
+from app.models.domain import Domain
 from app.models.notification_event import NotificationEvent
 from app.telegram.service import (
     send_certificate_changed_alert,
@@ -9,8 +9,6 @@ from app.telegram.service import (
     send_scan_failure_alert,
     send_scan_recovery_alert,
 )
-
-
 def _event_exists(db: Session, event_key: str) -> bool:
     return (
         db.query(NotificationEvent)
@@ -18,8 +16,6 @@ def _event_exists(db: Session, event_key: str) -> bool:
         .first()
         is not None
     )
-
-
 def _record_event(
     db: Session,
     domain_id: int,
@@ -35,8 +31,6 @@ def _record_event(
 
     db.add(event)
     db.commit()
-
-
 def send_expiry_notification(
     db: Session,
     domain_id: int,
@@ -46,46 +40,70 @@ def send_expiry_notification(
     valid_until: str,
     fingerprint_sha256: str,
 ) -> bool:
-    """
-    Send an SSL certificate expiry notification.
-
-    Notifications are sent once per threshold for each certificate.
-
-    Thresholds:
-        30 days
-        15 days
-        7 days
-        1 day
-        Expired
-
-    The certificate fingerprint is included in the event key so
-    a renewed certificate gets a fresh set of expiry notifications.
-    """
+    """Send one expiry alert per certificate fingerprint and threshold."""
 
     if days_remaining < 0:
         threshold = "expired"
-
     elif days_remaining <= 1:
         threshold = "1"
-
     elif days_remaining <= 7:
         threshold = "7"
-
     elif days_remaining <= 15:
         threshold = "15"
-
     elif days_remaining <= 30:
         threshold = "30"
-
     else:
         return False
 
-    event_key = (
-        f"domain:{domain_id}:expiry:"
-        f"{fingerprint_sha256}:{threshold}"
-    )
+    event_key = f"certificate:expiry:{fingerprint_sha256}:{threshold}"
 
     if _event_exists(db, event_key):
+        return False
+
+    # Find enabled domains whose current stored certificate
+    # has the same fingerprint.
+    matching_domains = (
+        db.query(Domain)
+        .join(Certificate, Certificate.domain_id == Domain.id)
+        .filter(
+            Certificate.fingerprint_sha256 == fingerprint_sha256,
+            Domain.enabled.is_(True),
+        )
+        .order_by(Domain.domain_name)
+        .all()
+    )
+
+    shared_domains = [
+        f"{item.domain_name}:{item.port}"
+        for item in matching_domains
+    ]
+
+    matching_domain_ids = {item.id for item in matching_domains}
+    matching_domain_ids.add(domain_id)
+
+    current_domain = f"{domain}:{port}"
+    if current_domain not in shared_domains:
+        shared_domains.append(current_domain)
+
+    # Compatibility check: the old implementation used
+    # domain-specific expiry event keys. If one of those alerts
+    # was already sent for this fingerprint and threshold, don't
+    # send another alert during the transition.
+    legacy_event_exists = any(
+        _event_exists(
+            db,
+            f"domain:{matched_id}:expiry:{fingerprint_sha256}:{threshold}",
+        )
+        for matched_id in matching_domain_ids
+    )
+
+    if legacy_event_exists:
+        _record_event(
+            db=db,
+            domain_id=domain_id,
+            event_type="expiry",
+            event_key=event_key,
+        )
         return False
 
     send_certificate_expiry_alert(
@@ -93,6 +111,7 @@ def send_expiry_notification(
         port=port,
         days_remaining=days_remaining,
         valid_until=valid_until,
+        shared_domains=shared_domains,
     )
 
     _record_event(
@@ -103,8 +122,6 @@ def send_expiry_notification(
     )
 
     return True
-
-
 def send_certificate_changed_notification(
     db: Session,
     domain_id: int,
@@ -137,8 +154,6 @@ def send_certificate_changed_notification(
     )
 
     return True
-
-
 def send_scan_failure_notification(
     db: Session,
     domain_id: int,
@@ -172,7 +187,6 @@ def send_scan_failure_notification(
     )
 
     return True
-
 def send_scan_recovery_notification(
     db: Session,
     domain_id: int,

@@ -1,6 +1,5 @@
 from app.telegram.client import send_message
 
-
 def send_test_message() -> None:
     message = (
         "🔔 CertMonitor Test\n\n"
@@ -9,13 +8,12 @@ def send_test_message() -> None:
     )
 
     send_message(message)
-
-
 def send_certificate_expiry_alert(
     domain: str,
     port: int,
     days_remaining: int,
     valid_until: str,
+    shared_domains: list[str] | None = None,
 ) -> None:
     if days_remaining < 0:
         status = "🔴 EXPIRED"
@@ -28,18 +26,18 @@ def send_certificate_expiry_alert(
     else:
         status = "🟢 HEALTHY"
 
+    domains = sorted(set(shared_domains or [f"{domain}:{port}"]))
+
     message = (
         f"{status}\n\n"
         "SSL Certificate Alert\n\n"
-        f"Domain: {domain}\n"
-        f"Port: {port}\n"
-        f"Days Remaining: {days_remaining}\n"
-        f"Valid Until: {valid_until}\n"
+        f"Shared by {len(domains)} monitored domain(s):\n"
+        + "\n".join(f"• {item}" for item in domains)
+        + f"\n\nDays Remaining: {days_remaining}"
+        + f"\nValid Until: {valid_until}"
     )
 
     send_message(message)
-
-
 def send_certificate_changed_alert(
     domain: str,
     port: int,
@@ -53,8 +51,6 @@ def send_certificate_changed_alert(
     )
 
     send_message(message)
-
-
 def send_scan_failure_alert(
     domain: str,
     port: int,
@@ -68,7 +64,6 @@ def send_scan_failure_alert(
     )
 
     send_message(message)
-
 def send_scan_recovery_alert(
     domain: str,
     port: int,
