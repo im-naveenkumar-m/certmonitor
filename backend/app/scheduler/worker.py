@@ -10,7 +10,7 @@ from app.models.domain import Domain
 from app.models.scan_history import ScanHistory
 from app.services.certificate import scan_domain_certificate
 from app.services.notification import (
-    clear_scan_failure_notification,
+    send_scan_recovery_notification,
     send_certificate_changed_notification,
     send_expiry_notification,
     send_scan_failure_notification,
@@ -170,13 +170,32 @@ def scan_due_domains() -> None:
                 )
 
                 # --------------------------------------------------------
-                # Clear any previous scan failure incident
+                # Recovery notification
                 # --------------------------------------------------------
 
-                clear_scan_failure_notification(
-                    db=db,
-                    domain_id=domain.id,
-                )
+                try:
+                    recovered = send_scan_recovery_notification(
+                        db=db,
+                        domain_id=domain.id,
+                        domain=domain.domain_name,
+                        port=domain.port,
+                    )
+
+                    if recovered:
+                        logger.info(
+                            "Telegram notification sent: scan recovery - %s:%s",
+                            domain.domain_name,
+                            domain.port,
+                        )
+
+                except Exception:
+                    # A Telegram failure must not turn a successful scan
+                    # into a scan failure.
+                    logger.exception(
+                        "Failed to send scan recovery notification: %s:%s",
+                        domain.domain_name,
+                        domain.port,
+                    )
 
                 # --------------------------------------------------------
                 # Certificate changed notification

@@ -68,3 +68,17 @@ def send_scan_failure_alert(
     )
 
     send_message(message)
+
+def send_scan_recovery_alert(
+    domain: str,
+    port: int,
+) -> None:
+    message = (
+        "✅ SSL Scan Recovered\n\n"
+        f"Domain: {domain}\n"
+        f"Port: {port}\n\n"
+        "The SSL certificate scan is working again.\n"
+        "The previous scan failure has recovered."
+    )
+
+    send_message(message)

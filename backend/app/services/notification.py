@@ -7,6 +7,7 @@ from app.telegram.service import (
     send_certificate_changed_alert,
     send_certificate_expiry_alert,
     send_scan_failure_alert,
+    send_scan_recovery_alert,
 )
 
 
@@ -172,20 +173,42 @@ def send_scan_failure_notification(
 
     return True
 
-
-def clear_scan_failure_notification(
+def send_scan_recovery_notification(
     db: Session,
     domain_id: int,
-) -> None:
+    domain: str,
+    port: int,
+) -> bool:
     """
-    Clear the scan-failure notification after a successful scan.
+    Send a recovery notification only when a previous
+    scan failure event exists.
 
-    This allows a future scan failure to generate a new alert.
+    Delete the failure event only after Telegram succeeds.
     """
 
-    db.query(NotificationEvent).filter(
-        NotificationEvent.domain_id == domain_id,
-        NotificationEvent.event_type == "scan_failure",
-    ).delete(synchronize_session=False)
+    event_key = f"domain:{domain_id}:scan_failure"
 
+    failure_event = (
+        db.query(NotificationEvent)
+        .filter(
+            NotificationEvent.domain_id == domain_id,
+            NotificationEvent.event_type == "scan_failure",
+            NotificationEvent.event_key == event_key,
+        )
+        .first()
+    )
+
+    if failure_event is None:
+        return False
+
+    # Send the recovery message before clearing the event.
+    # If Telegram fails, the failure event remains for retry.
+    send_scan_recovery_alert(
+        domain=domain,
+        port=port,
+    )
+
+    db.delete(failure_event)
     db.commit()
+
+    return True
