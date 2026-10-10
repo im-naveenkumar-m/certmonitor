@@ -1,5 +1,5 @@
-
 import { useEffect, useState } from "react";
+import axios from "axios";
 import api from "./services/api";
 
 interface ManagedUser {
@@ -12,6 +12,21 @@ interface ManagedUser {
 
 interface UserManagementProps {
   onBack: () => void;
+}
+
+function getApiErrorMessage(
+  err: unknown,
+  fallback: string
+): string {
+  if (axios.isAxiosError(err)) {
+    const detail: unknown = err.response?.data?.detail;
+
+    if (typeof detail === "string") {
+      return detail;
+    }
+  }
+
+  return fallback;
 }
 
 export default function UserManagement({ onBack }: UserManagementProps) {
@@ -52,7 +67,11 @@ export default function UserManagement({ onBack }: UserManagementProps) {
   };
 
   useEffect(() => {
-    void loadUsers();
+    const timer = setTimeout(() => {
+      void loadUsers();
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const createUser = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -75,9 +94,9 @@ export default function UserManagement({ onBack }: UserManagementProps) {
       setIsSuperuser(false);
       setMessage("User created successfully.");
       await loadUsers();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(
-        err.response?.data?.detail ?? "Failed to create user."
+        getApiErrorMessage(err, "Failed to create user.")
       );
     } finally {
       setSaving(false);
@@ -113,9 +132,9 @@ export default function UserManagement({ onBack }: UserManagementProps) {
       setEditingUser(null);
       setMessage("User updated successfully.");
       await loadUsers();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(
-        err.response?.data?.detail ?? "Failed to update user."
+        getApiErrorMessage(err, "Failed to update user.")
       );
     } finally {
       setSaving(false);
@@ -140,9 +159,9 @@ export default function UserManagement({ onBack }: UserManagementProps) {
       setResetUser(null);
       setNewPassword("");
       setMessage("Password reset successfully.");
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(
-        err.response?.data?.detail ?? "Failed to reset password."
+        getApiErrorMessage(err, "Failed to reset password.")
       );
     } finally {
       setSaving(false);

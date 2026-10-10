@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import api, {
   getCertificateByDomain,
@@ -160,13 +160,8 @@ function App() {
   // Dashboard loading
   // =========================
 
-  useEffect(() => {
-    if (token) {
-      loadDashboard();
-    }
-  }, [token]);
+  const loadDashboard = useCallback(async () => {
 
-  const loadDashboard = async () => {
     try {
       setLoading(true);
       setError("");
@@ -251,7 +246,15 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!token) return;
+
+    queueMicrotask(() => {
+      void loadDashboard();
+    });
+  }, [token, loadDashboard]);
 
   // =========================
   // Login
