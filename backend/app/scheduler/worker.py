@@ -15,6 +15,9 @@ from app.services.notification import (
     send_expiry_notification,
     send_scan_failure_notification,
 )
+from pathlib import Path
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
+
 
 
 # ============================================================
@@ -54,6 +57,19 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("certmonitor.scheduler")
+
+HEARTBEAT_FILE = Path("/tmp/certmonitor-scheduler-heartbeat")
+
+
+def update_scheduler_heartbeat(event) -> None:
+    """Record completion of the scheduled job, including job errors."""
+    if event.job_id != "scan_due_domains":
+        return
+
+    try:
+        HEARTBEAT_FILE.touch()
+    except OSError:
+        logger.exception("Failed to update scheduler heartbeat")
 
 
 # ============================================================
@@ -309,7 +325,10 @@ def main() -> None:
         coalesce=True,
     )
 
-
+    scheduler.add_listener(
+        update_scheduler_heartbeat,
+        EVENT_JOB_EXECUTED | EVENT_JOB_ERROR,
+    )
 
     try:
         scheduler.start()

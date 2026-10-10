@@ -72,6 +72,18 @@ services:
         "-m",
         "app.scheduler.worker"
       ]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import os,time,sys; p='/tmp/certmonitor-scheduler-heartbeat'; sys.exit(0 if os.path.exists(p) and time.time()-os.path.getmtime(p)<180 else 1)"
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
 
   nginx:
     image: nginx:alpine
