@@ -852,7 +852,7 @@ function App() {
         
         {/* Domain form */}
 
-        {showDomainForm && (
+        {showDomainForm && user?.is_superuser && (
 
           <section className="content-card domain-form-card">
 
@@ -1041,16 +1041,16 @@ function App() {
               </p>
 
             </div>
-
-            <button
-              className="primary-button"
-              onClick={
-                openAddDomainForm
-              }
-            >
-              + Add Domain
-            </button>
-
+            {user?.is_superuser && (
+              <button
+                className="primary-button"
+                onClick={
+                  openAddDomainForm
+                }
+              >
+                + Add Domain
+              </button>
+            )}
           </div>
 
           {loading ? (
@@ -1176,43 +1176,45 @@ function App() {
                         <td>
 
                           <div className="domain-actions">
+                            {user?.is_superuser && (
+                              <>
+                              <button
+                                className="secondary-button"
+                                onClick={() =>
+                                  openEditDomainForm(
+                                    domain
+                                  )
+                                }
+                              >
+                                Edit
+                              </button>
 
-                            <button
-                              className="secondary-button"
-                              onClick={() =>
-                                openEditDomainForm(
-                                  domain
-                                )
-                              }
-                            >
-                              Edit
-                            </button>
+                              <button
+                                className="delete-button"
+                                onClick={() =>
+                                  handleDeleteDomain(
+                                    domain
+                                  )
+                                }
+                              >
+                                Delete
+                              </button>
 
-                            <button
-                              className="delete-button"
-                              onClick={() =>
-                                handleDeleteDomain(
-                                  domain
-                                )
-                              }
-                            >
-                              Delete
-                            </button>
-
-                            <button
-                              className="primary-button"
-                              onClick={() =>
-                                handleScan(
-                                  domain.id
-                                )
-                              }
-                              disabled={
-                                !domain.enabled
-                              }
-                            >
-                              Scan
-                            </button>
-
+                              <button
+                                className="primary-button"
+                                onClick={() =>
+                                  handleScan(
+                                    domain.id
+                                  )
+                                }
+                                disabled={
+                                  !domain.enabled
+                                }
+                              >
+                                Scan
+                              </button>
+                              </>
+                            )}
                           </div>
 
                         </td>

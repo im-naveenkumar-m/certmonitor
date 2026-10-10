@@ -295,3 +295,86 @@ def test_inactive_user_cannot_log_in(client, test_db):
     )
 
     assert response.status_code == 401
+
+def test_regular_user_cannot_create_domain(client, user_headers):
+    response = client.post(
+        "/api/v1/domains",
+        headers=user_headers,
+        json={"domain_name": "example.com"},
+    )
+
+    assert response.status_code == 403
+
+
+def test_regular_user_cannot_update_domain(client, user_headers, admin_headers):
+    create_response = client.post(
+        "/api/v1/domains",
+        headers=admin_headers,
+        json={"domain_name": "example.com"},
+    )
+    assert create_response.status_code == 201
+    domain_id = create_response.json()["id"]
+
+    response = client.put(
+        f"/api/v1/domains/{domain_id}",
+        headers=user_headers,
+        json={"enabled": False},
+    )
+
+    assert response.status_code == 403
+
+
+def test_regular_user_cannot_delete_domain(client, user_headers, admin_headers):
+    create_response = client.post(
+        "/api/v1/domains",
+        headers=admin_headers,
+        json={"domain_name": "example.com"},
+    )
+    assert create_response.status_code == 201
+    domain_id = create_response.json()["id"]
+
+    response = client.delete(
+        f"/api/v1/domains/{domain_id}",
+        headers=user_headers,
+    )
+
+    assert response.status_code == 403
+
+
+def test_regular_user_cannot_trigger_domain_scan(
+    client, user_headers, admin_headers
+):
+    create_response = client.post(
+        "/api/v1/domains",
+        headers=admin_headers,
+        json={"domain_name": "example.com"},
+    )
+    assert create_response.status_code == 201
+    domain_id = create_response.json()["id"]
+
+    response = client.post(
+        f"/api/v1/domains/{domain_id}/scan",
+        headers=user_headers,
+    )
+
+    assert response.status_code == 403
+
+
+def test_superuser_can_create_domain(client, admin_headers):
+    response = client.post(
+        "/api/v1/domains",
+        headers=admin_headers,
+        json={"domain_name": "example.com"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["domain_name"] == "example.com"
+
+
+def test_regular_user_can_list_domains(client, user_headers):
+    response = client.get(
+        "/api/v1/domains",
+        headers=user_headers,
+    )
+
+    assert response.status_code == 200

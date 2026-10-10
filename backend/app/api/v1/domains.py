@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import (
+    get_current_superuser,
+    get_current_user,
+)
 from app.db.session import get_db
 from app.models.domain import Domain
 from app.models.user import User
@@ -34,7 +37,7 @@ router = APIRouter(
 def create(
     data: DomainCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_superuser),
 ):
     existing = (
         db.query(Domain)
@@ -92,7 +95,7 @@ def update(
     domain_id: int,
     data: DomainUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_superuser),
 ):
     domain = get_domain(db, domain_id)
 
@@ -132,7 +135,7 @@ def update(
 def delete(
     domain_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_superuser),
 ):
     domain = get_domain(db, domain_id)
 
@@ -153,7 +156,7 @@ def delete(
 def scan_domain(
     domain_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_superuser),
 ):
     domain = get_domain(db, domain_id)
 
