@@ -683,3 +683,125 @@ tbody tr:last-child td {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* User Management */
+
+.user-management {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.user-management .page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.user-management .stat-card {
+  padding: 24px;
+  margin-bottom: 0;
+}
+
+.user-management .stat-card h3 {
+  margin: 0 0 20px;
+}
+
+.user-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 20px;
+  align-items: center;
+}
+
+.user-form > label:not(.user-checkbox) {
+  grid-column: span 2;
+  font-weight: 600;
+  margin-bottom: -8px;
+}
+
+.user-form > input:not([type="checkbox"]) {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font: inherit;
+}
+
+.user-form > label.user-checkbox {
+  grid-column: span 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+}
+
+.user-form .primary-button {
+  justify-self: start;
+  min-width: 130px;
+}
+
+.user-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.user-management .table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.user-management table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.user-management th,
+.user-management td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.user-management th {
+  background: #f8fafc;
+  font-weight: 600;
+}
+
+.user-management td {
+  vertical-align: middle;
+}
+
+.user-management .success-message {
+  padding: 12px 14px;
+  border-radius: 6px;
+  color: #166534;
+  background: #dcfce7;
+}
+
+@media (max-width: 640px) {
+  .user-management .stat-card {
+    padding: 16px;
+  }
+
+  .user-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .user-form > label:not(.user-checkbox),
+  .user-form > label.user-checkbox {
+    grid-column: 1;
+  }
+
+  .user-management th,
+  .user-management td {
+    padding: 10px;
+  }
+}

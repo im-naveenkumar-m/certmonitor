@@ -6,11 +6,16 @@ import api, {
 } from "./services/api";
 
 import "./App.css";
+import UserManagement from "./UserManagement";
 
 interface User {
+  id: number;
   username: string;
-  role: string;
+  email: string;
+  is_active: boolean;
+  is_superuser: boolean;
 }
+
 
 interface Domain {
   id: number;
@@ -89,6 +94,9 @@ function App() {
   );
 
   const [user, setUser] = useState<User | null>(null);
+  const [activeView, setActiveView] = useState<"dashboard" | "users">(
+    "dashboard"
+  );
   const [domains, setDomains] = useState<Domain[]>([]);
   const [certificateStats, setCertificateStats] = useState({
     healthy: 0,
@@ -690,12 +698,20 @@ function App() {
             SSL Certificate Monitoring
           </span>
         </div>
-
+        {user?.is_superuser && (
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => setActiveView("users")}
+          >
+            User Management
+          </button>
+        )}
         <div className="user-section">
 
           <span>
             {user?.username} (
-            {user?.role})
+            {user?.is_superuser ? "Superuser" : "User"})
           </span>
 
           <button
@@ -712,7 +728,10 @@ function App() {
       </header>
 
       <main className="dashboard">
-
+        {activeView === "users" && user?.is_superuser ? (
+          <UserManagement onBack={() => setActiveView("dashboard")} />
+        ) : (
+          <>
         {/* Heading */}
 
         <div className="page-heading">
@@ -1555,7 +1574,8 @@ function App() {
             </section>
 
           )}
-
+        </>
+        )}
       </main>
 
     </div>

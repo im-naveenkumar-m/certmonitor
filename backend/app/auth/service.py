@@ -1,3 +1,4 @@
+
 from sqlalchemy.orm import Session
 
 from app.auth.hashing import verify_password
@@ -22,13 +23,10 @@ def authenticate_user(
 ):
     user = get_user_by_username(db, username)
 
-    if user is None:
+    if user is None or not user.is_active:
         return None
 
-    if not verify_password(
-        password,
-        user.hashed_password,
-    ):
+    if not verify_password(password, user.hashed_password):
         return None
 
     return user

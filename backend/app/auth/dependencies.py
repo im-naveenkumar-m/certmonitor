@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.auth.jwt import decode_token
 from app.auth.service import get_user_by_username
 from app.db.session import get_db
+from app.models.user import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
 
@@ -13,7 +14,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
 def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
-):
+) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -32,7 +33,19 @@ def get_current_user(
 
     user = get_user_by_username(db, username)
 
-    if user is None:
+    if user is None or not user.is_active:
         raise credentials_exception
 
     return user
+
+
+def get_current_superuser(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Superuser privileges required",
+        )
+
+    return current_user
