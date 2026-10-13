@@ -55,9 +55,11 @@ Confirm that the database settings match:
 
 Keep `DEBUG=false`. Telegram notifications are optional; configure `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` if you want to use them.
 
-### 3. Build the frontend
+### 3. Frontend development (optional)
 
-Install Node.js and npm if they are not already available, then run:
+For production deployment, Docker builds the React frontend automatically using the multi-stage `frontend/Dockerfile` and serves the production files with Nginx. You do not need to install Node.js or npm on the host machine.
+
+If you want to develop or test the frontend locally, install Node.js and npm, then run:
 
 ```bash
 cd frontend
