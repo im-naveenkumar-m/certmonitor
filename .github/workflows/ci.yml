@@ -68,3 +68,17 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         run: npm run build
+
+  docker-build:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -t certmonitor-backend:ci ./backend
+
+      - name: Build frontend image
+        run: docker build -t certmonitor-frontend:ci ./frontend
