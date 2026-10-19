@@ -23,6 +23,11 @@ from app.services.domain import (
 
 from app.services.certificate import scan_domain_certificate
 from app.schemas.certificate import CertificateResponse
+from app.telegram.service import (
+    send_manual_scan_completed_alert,
+    send_scan_failure_alert,
+)
+
 
 router = APIRouter(
     prefix="/domains",
@@ -149,6 +154,7 @@ def delete(
 
     return None
 
+
 @router.post(
     "/{domain_id}/scan",
     response_model=CertificateResponse,
@@ -175,9 +181,28 @@ def scan_domain(
     try:
         certificate = scan_domain_certificate(db, domain)
     except Exception as exc:
+        try:
+            send_scan_failure_alert(
+                domain.domain_name,
+                domain.port,
+                str(exc)[:500],
+            )
+        except Exception:
+            # A Telegram failure must not hide the scan error.
+            pass
+
         raise HTTPException(
             status_code=502,
             detail=f"Certificate scan failed: {str(exc)}",
+        ) from exc
+
+    try:
+        send_manual_scan_completed_alert(
+            domain.domain_name,
+            domain.port,
         )
+    except Exception:
+        # A Telegram failure must not turn a successful scan into an API error.
+        pass
 
     return certificate

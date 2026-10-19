@@ -77,3 +77,15 @@ def send_scan_recovery_alert(
     )
 
     send_message(message)
+
+def send_manual_scan_completed_alert(
+    domain: str,
+    port: int,
+) -> None:
+    message = (
+        "✅ Manual SSL Scan Completed\n\n"
+        f"Domain: {domain}\n"
+        f"Port: {port}\n\n"
+        "The manual certificate scan completed successfully."
+    )
+    send_message(message)

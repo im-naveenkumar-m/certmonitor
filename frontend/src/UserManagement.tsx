@@ -17,13 +17,78 @@ interface UserManagementProps {
   onBack: () => void;
 }
 
-function describeError(error: unknown, fallback: string) {
-  if (axios.isAxiosError(error)) {
-    const detail = error.response?.data?.detail;
-    if (typeof detail === "string") return detail;
+
+function describeError(error: unknown, fallback: string): string {
+  if (!axios.isAxiosError(error)) {
+    return fallback;
   }
+
+  const response = error.response;
+  const detail = response?.data?.detail;
+
+  // FastAPI validation errors are usually an array of objects.
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item: { loc?: unknown[]; msg?: string }) => {
+        const field = Array.isArray(item.loc)
+          ? String(item.loc[item.loc.length - 1] ?? "")
+          : "";
+
+        const message = item.msg ?? "";
+
+        if (field === "email") {
+          return "Please enter a valid email address, such as name@example.com.";
+        }
+
+        if (field === "password" || field === "new_password") {
+          if (message.toLowerCase().includes("at least")) {
+            return "Password must contain at least 8 characters.";
+          }
+          return "Please check the password requirements.";
+        }
+
+        if (field === "username") {
+          return message.toLowerCase().includes("at least")
+            ? "Username must contain at least 3 characters."
+            : `Username: ${message}`;
+        }
+
+        return message;
+      })
+      .filter(Boolean);
+
+    return messages.length > 0
+      ? [...new Set(messages)].join(" ")
+      : fallback;
+  }
+
+  // String errors, such as duplicate username/email responses.
+  if (typeof detail === "string") {
+    if (detail.toLowerCase().includes("already exists")) {
+      return "This username or email address is already registered.";
+    }
+    return detail;
+  }
+
+  if (response?.status === 401) {
+    return "Your session has expired. Please sign in again.";
+  }
+
+  if (response?.status === 403) {
+    return "You don't have permission to perform this action.";
+  }
+
+  if (response?.status === 409) {
+    return "This username or email address is already registered.";
+  }
+
+  if (response && response.status >= 500) {
+    return "A server error occurred. Please try again later.";
+  }
+
   return fallback;
 }
+
 
 export default function UserManagement({ currentUserId, onBack }: UserManagementProps) {
   const [users, setUsers] = useState<ManagedUser[]>([]);

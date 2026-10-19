@@ -32,7 +32,7 @@ class UserResponse(BaseModel):
 class UserCreate(BaseModel):
     username: str = Field(min_length=3, max_length=100)
     email: str = Field(min_length=3, max_length=255)
-    password: str = Field(min_length=12, max_length=128)
+    password: str = Field(min_length=8, max_length=128)
     is_superuser: bool = False
 
     _validate_email = field_validator("email")(
@@ -52,4 +52,4 @@ class UserUpdate(BaseModel):
 
 
 class UserPasswordReset(BaseModel):
-    new_password: str = Field(min_length=12, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)

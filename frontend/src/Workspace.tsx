@@ -130,11 +130,16 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
     const task = window.setTimeout(() => { void loadWorkspace(); }, 0);
     return () => window.clearTimeout(task);
   }, [loadWorkspace]);
+
   useEffect(() => {
     if (page !== "history" || domains.length === 0) return;
-    const task = window.setTimeout(() => { void loadHistory(); }, 0);
-    return () => window.clearTimeout(task);
+    void loadHistory();
+    const refreshInterval = window.setInterval(() => {
+      void loadHistory();
+    }, 60_000);
+    return () => window.clearInterval(refreshInterval);
   }, [page, domains.length, loadHistory]);
+
   useEffect(() => {
     localStorage.setItem("certmonitor-theme", theme);
   }, [theme]);
