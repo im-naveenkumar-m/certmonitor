@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type React from "react";
 import axios from "axios";
 import api from "./services/api";
+import "./Pages.css";
 
 interface ManagedUser {
   id: number;
@@ -11,411 +13,262 @@ interface ManagedUser {
 }
 
 interface UserManagementProps {
+  currentUserId: number;
   onBack: () => void;
 }
 
-function getApiErrorMessage(
-  err: unknown,
-  fallback: string
-): string {
-  if (axios.isAxiosError(err)) {
-    const detail: unknown = err.response?.data?.detail;
-
-    if (typeof detail === "string") {
-      return detail;
-    }
+function describeError(error: unknown, fallback: string) {
+  if (axios.isAxiosError(error)) {
+    const detail = error.response?.data?.detail;
+    if (typeof detail === "string") return detail;
   }
-
   return fallback;
 }
 
-export default function UserManagement({ onBack }: UserManagementProps) {
+export default function UserManagement({ currentUserId, onBack }: UserManagementProps) {
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-
+  const [createOpen, setCreateOpen] = useState(false);
+  const [resetUser, setResetUser] = useState<ManagedUser | null>(null);
+  const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
+  const [editUsername, setEditUsername] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSuperuser, setIsSuperuser] = useState(false);
-
-  const [editingUser, setEditingUser] =
-    useState<ManagedUser | null>(null);
-  const [editUsername, setEditUsername] = useState("");
-  const [editEmail, setEditEmail] = useState("");
-  const [editIsActive, setEditIsActive] = useState(true);
-  const [editIsSuperuser, setEditIsSuperuser] = useState(false);
-
-  const [resetUser, setResetUser] =
-    useState<ManagedUser | null>(null);
   const [newPassword, setNewPassword] = useState("");
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading(true);
     setError("");
-
     try {
       const response = await api.get("/users");
-      setUsers(response.data);
-    } catch {
-      setError("Unable to load users. Check your permissions.");
+      setUsers(response.data as ManagedUser[]);
+    } catch (err) {
+      setError(describeError(err, "Unable to load users."));
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      void loadUsers();
-    }, 0);
-
-    return () => clearTimeout(timer);
   }, []);
 
-  const createUser = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSaving(true);
-    setError("");
-    setMessage("");
+  useEffect(() => {
+    const task = window.setTimeout(() => { void loadUsers(); }, 0);
+    return () => window.clearTimeout(task);
+  }, [loadUsers]);
 
+  function openCreateForm() {
+    setUsername(""); setEmail(""); setPassword(""); setIsSuperuser(false);
+    setError(""); setNotice(""); setCreateOpen(true);
+  }
+
+  async function createUser(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setSaving(true); setError(""); setNotice("");
     try {
-      await api.post("/users", {
-        username,
-        email,
-        password,
-        is_superuser: isSuperuser,
-      });
-
-      setUsername("");
-      setEmail("");
-      setPassword("");
-      setIsSuperuser(false);
-      setMessage("User created successfully.");
+      await api.post("/users", { username: username.trim(), email: email.trim(), password, is_superuser: isSuperuser });
+      setCreateOpen(false); setNotice(`User ${username.trim()} created successfully.`);
       await loadUsers();
-    } catch (err: unknown) {
-      setError(
-        getApiErrorMessage(err, "Failed to create user.")
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
+    } catch (err) {
+      setError(describeError(err, "Unable to create user. Check the supplied details."));
+    } finally { setSaving(false); }
+  }
 
-  const startEditing = (managedUser: ManagedUser) => {
-    setEditingUser(managedUser);
-    setEditUsername(managedUser.username);
-    setEditEmail(managedUser.email);
-    setEditIsActive(managedUser.is_active);
-    setEditIsSuperuser(managedUser.is_superuser);
+  function openEditUser(user: ManagedUser) {
+    setEditingUser(user);
+    setEditUsername(user.username);
+    setEditEmail(user.email);
     setError("");
-    setMessage("");
-  };
+    setNotice("");
+  }
 
-  const saveUser = async (event: React.FormEvent<HTMLFormElement>) => {
+  async function saveUserDetails(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     if (!editingUser) return;
 
+    const usernameValue = editUsername.trim();
+    const emailValue = editEmail.trim();
+
+    if (usernameValue.length < 3) {
+      setError("Username must contain at least 3 characters.");
+      return;
+    }
+
+    if (!emailValue) {
+      setError("Email address is required.");
+      return;
+    }
+
     setSaving(true);
     setError("");
-    setMessage("");
+    setNotice("");
 
     try {
       await api.patch(`/users/${editingUser.id}`, {
-        username: editUsername,
-        email: editEmail,
-        is_active: editIsActive,
-        is_superuser: editIsSuperuser,
+        username: usernameValue,
+        email: emailValue,
       });
 
+      setNotice(`User "${usernameValue}" updated successfully.`);
       setEditingUser(null);
-      setMessage("User updated successfully.");
       await loadUsers();
-    } catch (err: unknown) {
+    } catch (err) {
       setError(
-        getApiErrorMessage(err, "Failed to update user.")
+        describeError(
+          err,
+          "Unable to update user. Check the username and email address.",
+        ),
       );
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const resetPassword = async (
-    event: React.FormEvent<HTMLFormElement>
-  ) => {
+  async function toggleActive(user: ManagedUser) {
+    setError(""); setNotice("");
+    try {
+      await api.patch(`/users/${user.id}`, { is_active: !user.is_active });
+      setNotice(`${user.username} ${user.is_active ? "deactivated" : "activated"}.`);
+      await loadUsers();
+    } catch (err) { setError(describeError(err, "Unable to update user status.")); }
+  }
+
+  async function toggleRole(user: ManagedUser) {
+    if (user.id === currentUserId && user.is_superuser) {
+      setError("You cannot remove administrator access from your own account here."); return;
+    }
+    setError(""); setNotice("");
+    try {
+      await api.patch(`/users/${user.id}`, { is_superuser: !user.is_superuser });
+      setNotice(`${user.username}'s role was updated.`);
+      await loadUsers();
+    } catch (err) { setError(describeError(err, "Unable to update user role.")); }
+  }
+
+  async function resetPassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!resetUser) return;
-
-    setSaving(true);
-    setError("");
-    setMessage("");
-
+    setSaving(true); setError(""); setNotice("");
     try {
-      await api.post(`/users/${resetUser.id}/reset-password`, {
-        new_password: newPassword,
-      });
+      await api.post(`/users/${resetUser.id}/reset-password`, { new_password: newPassword });
+      setNotice(`Password reset for ${resetUser.username}.`); setResetUser(null); setNewPassword("");
+    } catch (err) { setError(describeError(err, "Unable to reset password.")); }
+    finally { setSaving(false); }
+  }
 
-      setResetUser(null);
-      setNewPassword("");
-      setMessage("Password reset successfully.");
-    } catch (err: unknown) {
-      setError(
-        getApiErrorMessage(err, "Failed to reset password.")
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
+  return <section>
+    <div className="cm-page-heading"><div><p className="cm-eyebrow">ACCESS CONTROL</p><h1>User management</h1><p className="cm-page-description">Create accounts and manage access to CertMonitor.</p></div>
+      <div className="cm-heading-action cm-user-heading-actions"><button className="cm-button cm-button-secondary" onClick={onBack}>Back to dashboard</button><button className="cm-button cm-button-primary" onClick={openCreateForm}>Create User</button></div>
+    </div>
+    {error && <div className="cm-alert cm-alert-error" role="alert">{error}<button onClick={() => setError("")}>Dismiss</button></div>}
+    {notice && <div className="cm-alert cm-alert-success" role="status">{notice}<button onClick={() => setNotice("")}>Dismiss</button></div>}
 
-  return (
-    <section className="user-management">
-      <div className="page-heading">
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={onBack}
-        >
-          Dashboard
-        </button>
-        <div>
-          <h2>User Management</h2>
-          <p>Manage CertMonitor accounts and permissions.</p>
-        </div>
-
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={() => void loadUsers()}
-          disabled={loading}
-        >
-          Refresh
-        </button>
+    {createOpen && <form className="cm-panel cm-domain-form" onSubmit={createUser}>
+      <div className="cm-panel-heading"><div><h3>Create user</h3><p>Enter the account details and choose the access level.</p></div><button type="button" className="cm-button cm-button-secondary" onClick={() => setCreateOpen(false)}>Close</button></div>
+      <div className="cm-form-grid cm-user-form-grid">
+        <label className="cm-field">Username<input autoComplete="off" value={username} onChange={(event) => setUsername(event.target.value)} required /></label>
+        <label className="cm-field">Email address<input type="email" autoComplete="off" value={email} onChange={(event) => setEmail(event.target.value)} required /></label>
+        <label className="cm-field">Temporary password<input type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} required /></label>
+        <label className="cm-check"><input type="checkbox" checked={isSuperuser} onChange={(event) => setIsSuperuser(event.target.checked)} /> Administrator access</label>
       </div>
+      <div className="cm-form-actions"><button type="button" className="cm-button cm-button-ghost" onClick={() => setCreateOpen(false)}>Cancel</button><button className="cm-button cm-button-primary" disabled={saving}>{saving ? "Creating…" : "Create user"}</button></div>
+    </form>}
 
-      {error && <div className="error-message">{error}</div>}
-      {message && <div className="success-message">{message}</div>}
-
-      <div className="stat-card">
-        <h3>Create User</h3>
-
-        <form onSubmit={createUser} className="user-form">
-          <label htmlFor="new-username">Username</label>
-          <input
-            id="new-username"
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            minLength={3}
-            maxLength={100}
-            required
-          />
-
-          <label htmlFor="new-email">Email</label>
-          <input
-            id="new-email"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            required
-          />
-
-          <label htmlFor="new-password">Temporary password</label>
-          <input
-            id="new-password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            minLength={12}
-            maxLength={128}
-            autoComplete="new-password"
-            required
-          />
-
-          <label className="user-checkbox">
-            <input
-              type="checkbox"
-              checked={isSuperuser}
-              onChange={(event) => setIsSuperuser(event.target.checked)}
-            />
-            Grant superuser privileges
-          </label>
+    {resetUser && <form className="cm-panel cm-domain-form" onSubmit={resetPassword}>
+      <div className="cm-panel-heading"><div><h3>Reset password for {resetUser.username}</h3><p>Set a new password for this account.</p></div><button type="button" className="cm-button cm-button-secondary" onClick={() => { setResetUser(null); setNewPassword(""); }}>Cancel</button></div>
+      <div className="cm-form-grid cm-password-grid"><label className="cm-field">New password<input type="password" autoComplete="new-password" minLength={8} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required /></label></div>
+      <div className="cm-form-actions"><button className="cm-button cm-button-primary" disabled={saving}>{saving ? "Saving…" : "Reset password"}</button></div>
+    </form>}
+    {editingUser && (
+      <form
+        className="cm-panel cm-domain-form"
+        onSubmit={saveUserDetails}
+      >
+        <div className="cm-panel-heading">
+          <div>
+            <h3>Edit user</h3>
+            <p>
+              Update the username and email address for {editingUser.username}.
+            </p>
+          </div>
 
           <button
-            type="submit"
-            className="primary-button"
-            disabled={saving}
+            type="button"
+            className="cm-button cm-button-secondary"
+            onClick={() => setEditingUser(null)}
           >
-            {saving ? "Saving..." : "Create User"}
+            Close
           </button>
-        </form>
-      </div>
+        </div>
 
-      <div className="stat-card">
-        <h3>Existing Users</h3>
-
-        {loading ? (
-          <p>Loading users...</p>
-        ) : users.length === 0 ? (
-          <p>No users found.</p>
-        ) : (
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Username</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((managedUser) => (
-                  <tr key={managedUser.id}>
-                    <td>{managedUser.username}</td>
-                    <td>{managedUser.email}</td>
-                    <td>
-                      {managedUser.is_superuser
-                        ? "Superuser"
-                        : "User"}
-                    </td>
-                    <td>
-                      {managedUser.is_active ? "Active" : "Inactive"}
-                    </td>
-                    <td>
-                      <div className="user-actions">
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() => startEditing(managedUser)}
-                        >
-                          Edit
-                        </button>
-
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() => {
-                            setResetUser(managedUser);
-                            setNewPassword("");
-                            setError("");
-                            setMessage("");
-                          }}
-                        >
-                          Reset Password
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {editingUser && (
-        <div className="stat-card">
-          <h3>Edit {editingUser.username}</h3>
-
-          <form onSubmit={saveUser} className="user-form">
-            <label htmlFor="edit-username">Username</label>
+        <div className="cm-form-grid cm-user-form-grid">
+          <label className="cm-field">
+            Username
             <input
-              id="edit-username"
               value={editUsername}
               onChange={(event) => setEditUsername(event.target.value)}
               minLength={3}
               maxLength={100}
+              autoComplete="off"
               required
             />
+          </label>
 
-            <label htmlFor="edit-email">Email</label>
+          <label className="cm-field">
+            Email address
             <input
-              id="edit-email"
               type="email"
               value={editEmail}
               onChange={(event) => setEditEmail(event.target.value)}
+              maxLength={255}
+              autoComplete="off"
               required
             />
-
-            <label className="user-checkbox">
-              <input
-                type="checkbox"
-                checked={editIsActive}
-                onChange={(event) => setEditIsActive(event.target.checked)}
-              />
-              Account active
-            </label>
-
-            <label className="user-checkbox">
-              <input
-                type="checkbox"
-                checked={editIsSuperuser}
-                onChange={(event) =>
-                  setEditIsSuperuser(event.target.checked)
-                }
-              />
-              Superuser privileges
-            </label>
-
-            <div className="user-actions">
-              <button
-                type="submit"
-                className="primary-button"
-                disabled={saving}
-              >
-                {saving ? "Saving..." : "Save Changes"}
-              </button>
-
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => setEditingUser(null)}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+          </label>
         </div>
-      )}
 
-      {resetUser && (
-        <div className="stat-card">
-          <h3>Reset Password: {resetUser.username}</h3>
+        <div className="cm-form-actions">
+          <button
+            type="button"
+            className="cm-button cm-button-ghost"
+            onClick={() => setEditingUser(null)}
+          >
+            Cancel
+          </button>
 
-          <form onSubmit={resetPassword} className="user-form">
-            <label htmlFor="reset-password">New password</label>
-            <input
-              id="reset-password"
-              type="password"
-              value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
-              minLength={12}
-              maxLength={128}
-              autoComplete="new-password"
-              required
-            />
-
-            <div className="user-actions">
-              <button
-                type="submit"
-                className="primary-button"
-                disabled={saving}
-              >
-                {saving ? "Saving..." : "Reset Password"}
-              </button>
-
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => setResetUser(null)}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+          <button
+            type="submit"
+            className="cm-button cm-button-primary"
+            disabled={saving}
+          >
+            {saving ? "Saving…" : "Save changes"}
+          </button>
         </div>
-      )}
-    </section>
-  );
+      </form>
+    )}
+    <div className="cm-panel cm-table-panel"><div className="cm-table-scroll"><table className="cm-table"><thead><tr><th>USERNAME</th><th>EMAIL</th><th>ROLE</th><th>STATUS</th><th>ACTIONS</th></tr></thead><tbody>
+      {users.map((managedUser) => <tr key={managedUser.id}>
+        <td><strong>{managedUser.username}</strong>{managedUser.id === currentUserId && <span className="cm-current-user-label">You</span>}</td>
+        <td>{managedUser.email || "—"}</td>
+        <td><span className={`cm-pill ${managedUser.is_superuser ? "attention" : "unknown"}`}>{managedUser.is_superuser ? "Administrator" : "Member"}</span></td>
+        <td><span className={`cm-pill ${managedUser.is_active ? "healthy" : "critical"}`}>{managedUser.is_active ? "Active" : "Inactive"}</span></td>
+        <td><div className="cm-row-actions"><button className="cm-button cm-button-secondary cm-button-small" onClick={() => { setResetUser(managedUser); setNewPassword(""); setError(""); }}>Reset password</button>
+        <button
+          type="button"
+          className="cm-button cm-button-secondary cm-button-small"
+          onClick={() => openEditUser(managedUser)}
+        >
+          Edit
+        </button>
+          <button className="cm-button cm-button-secondary cm-button-small" disabled={managedUser.id === currentUserId} onClick={() => void toggleRole(managedUser)}>{managedUser.is_superuser ? "Make member" : "Make admin"}</button>
+          <button className="cm-button cm-button-danger cm-button-small" disabled={managedUser.id === currentUserId} onClick={() => void toggleActive(managedUser)}>{managedUser.is_active ? "Deactivate" : "Activate"}</button></div></td>
+      </tr>)}
+    </tbody></table>
+    {loading && <div className="cm-loading">Loading users…</div>}
+    {!loading && users.length === 0 && <div className="cm-empty"><strong>No users found</strong><p>Create a user to get started.</p></div>}
+    </div></div>
+  </section>;
 }

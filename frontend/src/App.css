@@ -79,3 +79,195 @@
     font-size: 24px;
   }
 }
+
+/* Theme switch */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+.theme-toggle {
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.user-management .user-actions {
+  gap: 8px;
+}
+
+.user-management .user-actions .secondary-button,
+.user-management .user-actions .delete-button {
+  min-height: 34px;
+  padding: 8px 11px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.login-page > .theme-toggle {
+  position: fixed;
+  top: 20px;
+  right: 22px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  color: #e6edf7;
+  background: #111827;
+  --text: #e6edf7;
+  --muted: #a6b2c3;
+  --border: #344154;
+  --surface: #1c2736;
+  --blue: #78aaff;
+  --blue-dark: #9bc0ff;
+  --green: #55cf8b;
+  --red: #ff8585;
+  --shadow: 0 2px 8px rgba(0, 0, 0, .18), 0 12px 28px rgba(0, 0, 0, .14);
+}
+
+:root[data-theme="dark"] body {
+  background: #111827;
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .login-page {
+  background: radial-gradient(ellipse at top, #202d40 0%, #151e2c 60%, #111827 100%);
+}
+
+:root[data-theme="dark"] .login-card,
+:root[data-theme="dark"] .certificate-item {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+:root[data-theme="dark"] .login-card label,
+:root[data-theme="dark"] .form-group label,
+:root[data-theme="dark"] .user-form > label:not(.user-checkbox),
+:root[data-theme="dark"] .user-form > label.user-checkbox,
+:root[data-theme="dark"] .user-section > span {
+  color: #d0d9e6;
+}
+
+:root[data-theme="dark"] .login-card input,
+:root[data-theme="dark"] .form-group input[type="text"],
+:root[data-theme="dark"] .form-group input[type="number"],
+:root[data-theme="dark"] .user-form > input:not([type="checkbox"]) {
+  color: var(--text);
+  background: #141e2b;
+  border-color: #45546a;
+}
+
+:root[data-theme="dark"] .topbar {
+  background: rgba(24, 34, 49, .97);
+}
+
+:root[data-theme="dark"] .secondary-button,
+:root[data-theme="dark"] .logout-button {
+  color: #dce5f1;
+  background: #202d40;
+  border-color: #45546a;
+}
+
+:root[data-theme="dark"] .secondary-button:hover,
+:root[data-theme="dark"] .logout-button:hover {
+  background: #2a3a50;
+  border-color: #60728b;
+}
+
+:root[data-theme="dark"] .card-header,
+:root[data-theme="dark"] .certificate-header {
+  border-color: #344154;
+}
+
+:root[data-theme="dark"] th {
+  color: #cbd6e5;
+  background: #202d40;
+}
+
+:root[data-theme="dark"] th,
+:root[data-theme="dark"] td {
+  border-color: #344154;
+}
+
+:root[data-theme="dark"] td,
+:root[data-theme="dark"] .certificate-item strong {
+  color: #d4deeb;
+}
+
+:root[data-theme="dark"] tbody tr {
+  background: #1c2736;
+}
+
+:root[data-theme="dark"] tbody tr:hover {
+  background: #26364b;
+}
+
+:root[data-theme="dark"] .certificate-days {
+  background: #202f45;
+  border-color: #3b4d67;
+}
+
+:root[data-theme="dark"] .status-healthy {
+  color: #8de0ae;
+  background: #173c2d;
+}
+
+:root[data-theme="dark"] .status-expired,
+:root[data-theme="dark"] .status-critical {
+  color: #ffaaaa;
+  background: #48272c;
+}
+
+:root[data-theme="dark"] .status-warning {
+  color: #ffc18c;
+  background: #493321;
+}
+
+:root[data-theme="dark"] .status-attention {
+  color: #f1d982;
+  background: #443c22;
+}
+
+:root[data-theme="dark"] .status-disabled {
+  color: #c1cad7;
+  background: #303b4b;
+}
+
+:root[data-theme="dark"] .delete-button {
+  color: #ffaaaa;
+  background: #38252a;
+  border-color: #75434b;
+}
+
+:root[data-theme="dark"] .delete-button:hover {
+  background: #4a2b32;
+  border-color: #96505c;
+}
+
+:root[data-theme="dark"] .error-message {
+  color: #ffaaaa;
+  background: #38252a;
+  border-color: #75434b;
+}
+
+:root[data-theme="dark"] .user-management .success-message {
+  color: #9ae6b4;
+  background: #173c2d;
+  border-color: #2e7650;
+}
+
+:root[data-theme="dark"] .login-card input:-webkit-autofill,
+:root[data-theme="dark"] .login-card input:-webkit-autofill:hover,
+:root[data-theme="dark"] .login-card input:-webkit-autofill:focus,
+:root[data-theme="dark"] .login-card input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--text);
+  caret-color: var(--text);
+  -webkit-box-shadow: 0 0 0 1000px #141e2b inset;
+  box-shadow: 0 0 0 1000px #141e2b inset;
+  border-color: #45546a;
+}
+
+@media (max-width: 760px) {
+  .login-page > .theme-toggle {
+    top: 12px;
+    right: 12px;
+  }
+}
