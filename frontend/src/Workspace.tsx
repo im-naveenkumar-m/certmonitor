@@ -133,11 +133,19 @@ export default function Workspace({ onLogout }: { onLogout: () => void }) {
 
   useEffect(() => {
     if (page !== "history" || domains.length === 0) return;
-    void loadHistory();
+
+    const initialLoad = window.setTimeout(() => {
+      void loadHistory();
+    }, 0);
+
     const refreshInterval = window.setInterval(() => {
       void loadHistory();
     }, 60_000);
-    return () => window.clearInterval(refreshInterval);
+
+    return () => {
+      window.clearTimeout(initialLoad);
+      window.clearInterval(refreshInterval);
+    };
   }, [page, domains.length, loadHistory]);
 
   useEffect(() => {

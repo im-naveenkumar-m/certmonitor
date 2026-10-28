@@ -44,3 +44,8 @@ __pycache__/
 # Database backups
 backups/
 .env.telegram-test
+# Local HTTPS test certificate data
+.https-lan-test/
+
+# Local backup files
+*.bak-*
