@@ -1,34 +1,31 @@
+
 services:
-  # Remove development source mounts inherited from docker-compose.yml.
+  # Use the application code built into the images.
   backend:
     volumes: !override []
 
   scheduler:
     volumes: !override []
 
-  # Caddy is the only publicly exposed web entry point.
+  # Nginx handles HTTPS directly.
   nginx:
-    ports: !override []
-
-  caddy:
-    image: caddy:2.11.7
-    container_name: certmonitor-caddy-production
-    restart: unless-stopped
-    environment:
-      DOMAIN: ${DOMAIN:?Set DOMAIN in the root .env file}
-    ports:
+    ports: !override
       - "80:80"
       - "443:443"
-      # Optional HTTP/3 support; enable only if UDP 443 is allowed:
-      # - "443:443/udp"
-    volumes:
-      - ./Caddyfile.production:/etc/caddy/Caddyfile:ro
-      - caddy_data_production:/data
-      - caddy_config_production:/config
-    depends_on:
-      nginx:
-        condition: service_healthy
 
-volumes:
-  caddy_data_production:
-  caddy_config_production:
+    volumes: !override
+      - ./nginx/default.tls.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --no-check-certificate
+        - --quiet
+        - --spider
+        - https://127.0.0.1/
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

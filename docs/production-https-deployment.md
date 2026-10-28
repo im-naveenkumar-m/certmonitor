@@ -1,182 +1,217 @@
-# CertMonitor --- Production Deployment
+# CertMonitor — HTTPS Deployment Guide
 
-This guide is for users who want to deploy CertMonitor on a public Linux
-server using their own domain and public IP. It uses Docker Compose and
-Caddy for automatic HTTPS. It does not require a separate install
-script.
+This guide explains how to deploy CertMonitor with HTTPS using Docker Compose and Nginx. The administrator supplies the TLS certificate and matching private key.
+
+This approach supports both private LAN deployments and public deployments. Caddy is not required.
 
 ## Prerequisites
 
--   A separate Linux server with Docker Engine and the Docker Compose
-    plugin.
--   A domain name you control and a public IP address that can reach the
-    server.
--   Provider/server firewall access for inbound TCP ports 80 and 443.
--   Git installed on the server.
--   Secure SSH access to the server.
+- A Linux server with Docker Engine and the Docker Compose plugin.
+- Git installed on the server.
+- Secure access to the server.
+- A TLS certificate and its matching private key.
+- Port 80 and port 443 available on the server.
+- For a public deployment, a domain name and a public IP address that can reach the server.
 
-Do not expose the application publicly until environment secrets,
-authentication, backups, and firewall rules have been reviewed.
+For public deployments, configure DNS and firewalls before making the application publicly accessible. Review authentication, environment secrets, backups, and firewall rules before production use.
 
 ## 1. Get the project
 
-``` bash
+```bash
 git clone https://github.com/im-naveenkumar-m/certmonitor.git
 cd certmonitor
 ```
 
-Use the project's documented release/default branch for production
-rather than an unfinished development branch, if a stable release branch
-is available.
+Use a reviewed release or stable branch for production when one is available.
 
 ## 2. Configure environment files
 
-Create the local environment files only if they do not already exist:
+Create the environment files only if they do not already exist:
 
-``` bash
+```bash
 cp .env.example .env
 cp backend/.env.example backend/.env
 ```
 
-If either file already exists, do not overwrite it; edit the existing
-file carefully.
+Do not overwrite existing environment files. Review and update them carefully.
 
 Generate two strong random values:
 
-``` bash
+```bash
 openssl rand -hex 32
 openssl rand -hex 32
 ```
 
-Use the first value for `POSTGRES_PASSWORD` in the root `.env` and the
-matching password in `DATABASE_URL` in `backend/.env`. Use the second
-value for `SECRET_KEY` in `backend/.env`.
+Configure the first value as `POSTGRES_PASSWORD` in the root `.env` file and use the same password in `DATABASE_URL` in `backend/.env`. Configure the second value as `SECRET_KEY` in `backend/.env`.
 
-Set `DOMAIN` in the root `.env` to the exact public hostname, for
-example:
+Confirm that the database name, username, and password match between the two files. The backend's database hostname should be `db` and its internal port should be `5432`.
 
-``` dotenv
-DOMAIN=certmonitor.example.com
+Keep `DEBUG=false`. Configure Telegram settings if notifications are required. Review the current environment templates and application settings for all other required values.
+
+Keep environment files private and excluded from Git.
+
+## 3. Prepare the certificate
+
+Create a directory in the repository root:
+
+```bash
+mkdir -p certs
 ```
 
-Replace the example with your own domain. Ensure `POSTGRES_DB`,
-`POSTGRES_USER`, and the password match the database connection settings
-in `backend/.env`. The database hostname in `DATABASE_URL` should be
-`db`, using the Compose network and internal port `5432`.
+Place the certificate chain and private key in these locations:
 
-Keep `DEBUG=false`. Telegram settings are optional unless you want
-notifications. Review all required backend settings from the current
-`backend/.env.example` and application configuration before deployment.
-
-Keep `.env` and `backend/.env` private and excluded from Git. Never
-commit real secrets.
-
-## 3. Configure DNS and firewall
-
-1.  Create a DNS `A` record for your chosen hostname pointing to the
-    production server's public IPv4 address.
-2.  If you configure an `AAAA` record, verify that IPv6 is correctly
-    routed and firewalled; remove an unusable record.
-3.  Allow inbound TCP ports 80 and 443 in both the hosting/provider
-    firewall and the server firewall. Configure router/NAT forwarding if
-    applicable.
-4.  Confirm that the domain resolves to the correct server and that
-    inbound validation traffic can reach it.
-
-A public IP does not guarantee that inbound connections are allowed.
-Certificate issuance will fail until DNS and network access are correct.
-
-## 4. Validate the production configuration
-
-Copy these files from the repository's production deployment files into
-the repository root:
-
--   `docker-compose.production.yml`
--   `Caddyfile.production`
-
-Then run:
-
-``` bash
-docker compose -f docker-compose.yml -f docker-compose.production.yml config -q
-docker compose -f docker-compose.yml -f docker-compose.production.yml config --services
+```text
+certs/fullchain.pem
+certs/privkey.pem
 ```
 
-Review the merged configuration locally. It should include `db`,
-`backend`, `nginx`, `scheduler`, and `caddy`. Verify that Caddy
-publishes TCP 80 and 443, while Nginx, FastAPI, and PostgreSQL have no
-public host-port mappings.
+`fullchain.pem` must contain the certificate presented by the server and, when applicable, the intermediate certificates required to validate its chain. `privkey.pem` must contain the corresponding private key.
 
-The production override removes backend and scheduler source bind mounts
-so the running containers use the code built into their images.
+Ensure that the certificate matches the exact hostname or IP address users will use to access CertMonitor.
 
-## 5. Build and start production
+### Private LAN deployments
 
-Run only after the environment files, DNS, public IP, and firewall are
-configured:
+You can use a certificate from your organization's internal certificate authority. Alternatively, a self-signed certificate can be used for testing.
 
-``` bash
-docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
+Install and trust the internal CA certificate on client devices when using a private CA. A self-signed certificate will normally trigger a browser warning until the client explicitly trusts it. Trusting a certificate does not make an expired or hostname-mismatched certificate valid.
+
+A public domain and a publicly trusted certificate are not required for a private LAN deployment.
+
+### Public deployments
+
+Obtain a certificate from a public certificate provider of your choice. Configure DNS to resolve your domain to the server's public IP address.
+
+Allow inbound TCP ports 80 and 443 through the provider firewall, server firewall, and any relevant upstream router or NAT device.
+
+Certificate issuance and renewal depend on the certificate provider and its validation method. The administrator is responsible for renewing the certificate and replacing the deployed files before expiry.
+
+**Security:** Never commit the private key to Git. Protect it with appropriate filesystem permissions, and restrict access to the certificate directory.
+
+## 4. Validate the deployment configuration
+
+Run these commands from the repository root:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tls.yml config --quiet
+docker compose -f docker-compose.yml -f docker-compose.tls.yml config --services
 ```
 
-Check status and logs:
+Inspect the merged configuration before starting the application. The TLS override configures Nginx to publish ports 80 and 443, use the provided certificate files, and redirect HTTP traffic to HTTPS.
 
-``` bash
-docker compose -f docker-compose.yml -f docker-compose.production.yml ps
-docker compose -f docker-compose.yml -f docker-compose.production.yml logs --tail=100 caddy nginx backend db scheduler
+The override removes development source-code bind mounts from the backend and scheduler so that the containers use the code built into their images.
+
+Ensure `certs/fullchain.pem` and `certs/privkey.pem` exist and correspond to each other.
+
+## 5. Build and start the services
+
+Start the application:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
 ```
+
+Check the services:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tls.yml ps
+```
+
+Validate the active Nginx configuration:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tls.yml exec nginx nginx -t
+```
+
+If a service fails, inspect its logs:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tls.yml logs --tail=100 nginx backend db scheduler
+```
+
+Resolve any configuration or certificate errors before allowing users to access the application.
 
 ## 6. Create the first administrator
 
-Only for a fresh database that has no users:
+Run this only for a fresh database that does not already contain users:
 
-``` bash
-docker compose -f docker-compose.yml -f docker-compose.production.yml exec backend python create_admin.py
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tls.yml exec backend python create_admin.py
 ```
 
-Use a strong, unique administrator password. This is an initial-account
-setup command, not a password-reset command.
+Use a strong, unique password. This command creates the initial administrator; it is not a password-reset command.
 
-## 7. Verify the site
+## 7. Verify HTTPS
 
-1.  Open `https://YOUR_REAL_DOMAIN/` using your configured hostname.
-2.  Confirm the browser reports a valid, publicly trusted certificate.
-3.  Confirm HTTP redirects to HTTPS.
-4.  Test login, frontend navigation, API requests, certificate scanning,
-    scheduler activity, and Telegram notifications if configured.
-5.  Check logs for errors.
-6.  Verify from outside the server that only the intended web ports are
-    publicly reachable.
-7.  Test a container restart and confirm the database and Caddy
-    certificate state persist.
+For a public deployment, open:
 
-Caddy automatically obtains and renews public certificates when the
-hostname resolves correctly and the required validation traffic reaches
-the server.
+```text
+https://YOUR_REAL_DOMAIN/
+```
 
-## 8. Backups and updates
+For a LAN deployment, open the HTTPS URL using the configured hostname or IP address.
 
--   Schedule PostgreSQL backups and store them away from the production
-    server.
--   Test database restoration before relying on backups.
--   Keep the Docker volumes `postgres_data`, `caddy_data_production`,
-    and `caddy_config_production`.
--   To update, back up first, obtain the intended reviewed release, then
-    rebuild and redeploy using the same Compose file pair.
--   Do not run `docker compose down -v` as a routine update or
-    troubleshooting command.
--   Document recovery, rollback, and secret rotation procedures.
+Verify the following:
+
+1. The application loads over HTTPS.
+2. HTTP traffic redirects to HTTPS.
+3. The certificate is valid, unexpired, and matches the hostname or IP address.
+4. The client trusts the issuing CA or certificate.
+5. Login, frontend navigation, API requests, certificate scanning, scheduler activity, and configured Telegram notifications work.
+6. Nginx, backend, database, and scheduler logs do not show unresolved errors.
+7. Only intended ports are publicly reachable; PostgreSQL and FastAPI are not exposed directly.
+8. A container restart preserves database data and the application remains accessible.
+
+For a quick connectivity check, replace the address with your server's configured hostname or IP:
+
+```bash
+curl -I https://YOUR_HOSTNAME_OR_IP/
+curl -I http://YOUR_HOSTNAME_OR_IP/
+```
+
+The HTTPS request should succeed when the certificate is trusted by the client. The HTTP request should return a redirect to HTTPS.
+
+For a self-signed certificate that is not trusted, `curl` may report a certificate verification error. You can use `curl -k` for a temporary connectivity test, but do not treat that as successful certificate validation.
+
+## 8. Certificate renewal and replacement
+
+Nginx serves the certificate files provided by the administrator. It does not automatically issue or renew them.
+
+1. Renew or reissue the certificate through your chosen certificate provider before expiry.
+2. Replace `certs/fullchain.pem` and `certs/privkey.pem` with the new certificate and matching private key.
+3. Validate the Nginx configuration.
+4. Reload or recreate Nginx so the new certificate is loaded.
+5. Test HTTPS from a client and verify the new expiry date.
+
+For example, after replacing the files:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tls.yml exec nginx nginx -t
+docker compose -f docker-compose.yml -f docker-compose.tls.yml restart nginx
+```
+
+Plan renewal in advance and protect a working copy of the current certificate until the replacement has been verified.
+
+## 9. Backups, updates, and rollback
+
+- Schedule database backups and store them separately from the production server.
+- Test restoring a backup.
+- Preserve the `postgres_data` Docker volume during routine updates and troubleshooting.
+- Back up the environment files and TLS certificate material securely.
+- Obtain the intended reviewed code version, then rebuild and redeploy using the same Compose file pair.
+- Do not run `docker compose down -v` as a routine update or troubleshooting command.
+- Document how to restore the previous application version and certificate.
 
 ## Production checklist
 
--   [ ] Domain DNS points to the correct public IP.
--   [ ] TCP 80 and 443 are allowed through provider and server
-    firewalls.
--   [ ] Root `.env` and `backend/.env` are configured securely and
-    excluded from Git.
--   [ ] Compose configuration validates successfully.
--   [ ] Only Caddy publishes public host ports.
--   [ ] HTTPS certificate is valid and HTTP redirects to HTTPS.
--   [ ] Administrator setup, login, API, scanning, scheduler, and
-    notifications are tested.
--   [ ] PostgreSQL backups and recovery are tested.
--   [ ] Rollback steps are documented.
+- [ ] Environment files contain secure values and are excluded from Git.
+- [ ] The certificate and private key match the deployment hostname or IP.
+- [ ] The certificate chain is valid for the intended clients.
+- [ ] For public deployments, DNS and firewall rules are configured.
+- [ ] The merged Compose configuration validates successfully.
+- [ ] Nginx configuration validation succeeds.
+- [ ] HTTP redirects to HTTPS.
+- [ ] Login, frontend, API, scanning, scheduler, and notifications are tested.
+- [ ] PostgreSQL and FastAPI are not publicly exposed.
+- [ ] Certificate renewal responsibilities and procedures are documented.
+- [ ] Database backups and recovery have been tested.
+- [ ] Rollback steps are documented.

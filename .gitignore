@@ -1,3 +1,4 @@
+
 # =========================
 # Python
 # =========================
@@ -5,17 +6,18 @@
 backend/.venv/
 **/__pycache__/
 *.py[cod]
-*.pyo
-*.pyd
 .pytest_cache/
 .coverage
 
 # =========================
-# Environment
+# Environment and secrets
 # =========================
 .env
+.env.*
+!.env.example
 backend/.env
-.env
+.env.telegram-test
+
 # =========================
 # Node
 # =========================
@@ -37,15 +39,24 @@ Thumbs.db
 # =========================
 # Logs
 # =========================
-*.log.venv/
-__pycache__/
-*.py[cod]
+*.log
 
+# =========================
 # Database backups
+# =========================
 backups/
-.env.telegram-test
-# Local HTTPS test certificate data
+
+# =========================
+# Local HTTPS test data
+# =========================
 .https-lan-test/
 
+# =========================
 # Local backup files
+# =========================
 *.bak-*
+
+# =========================
+# Local TLS certificates and private keys
+# =========================
+/certs/

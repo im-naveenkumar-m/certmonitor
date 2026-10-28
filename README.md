@@ -107,62 +107,77 @@ The command refuses initial setup if an account already exists. It is not a pass
 
 ### 6. Access CertMonitor
 
-#### Option A: HTTP deployment (local or private network)
+#### Option A: HTTP deployment (local testing only)
 
-The default Compose configuration publishes HTTP on port 80. Open:
+The default Compose configuration publishes HTTP on port 80:
 
 ```text
 http://SERVER_ADDRESS/
 ```
 
-Replace `SERVER_ADDRESS` with the deployment server's hostname or IP address. HTTP does not encrypt traffic, so use this option only on a trusted local or private network. Do not expose the default HTTP configuration directly to the public internet.
+Replace `SERVER_ADDRESS` with the server's hostname or IP address. HTTP traffic is not encrypted. Use this option only for local testing on a trusted network, not for public production deployments.
 
-#### Option B: Public production deployment (HTTPS)
+#### Option B: HTTPS deployment (LAN or public)
 
-For a public deployment, use the production Compose override and Caddy configuration. Caddy automatically obtains and renews HTTPS certificates when the domain and network are configured correctly.
+CertMonitor supports HTTPS through **Nginx**, using a TLS certificate and private key supplied by the administrator. Caddy is not required.
 
-**Prerequisites**
+**Choose a certificate appropriate for your deployment:**
 
-- A Linux server with Docker Compose installed.
-- A domain name you control, with its DNS records pointing to the server's public IP address.
-- Inbound TCP ports 80 and 443 allowed through the server firewall and any upstream firewall or router.
-- The root `.env` and `backend/.env` files configured with strong, private secrets.
-- Internet access from the server so Caddy can obtain and renew public certificates.
+- **Private LAN:** Use a certificate issued by your organization's internal certificate authority, or a self-signed certificate for testing. Clients must trust the issuing CA or certificate to avoid browser security warnings.
+- **Public domain:** Obtain a certificate from a public certificate provider. Configure DNS to point your domain to the server's public IP and ensure the required network access is available.
 
-**Configure the domain**
+The certificate must match the hostname or IP address users enter in their browsers.
 
-Set `DOMAIN` in the root `.env` file to the domain you intend to use. For example:
+**Prepare the certificate files**
 
-```dotenv
-DOMAIN=monitor.example.com
-```
-
-Replace `monitor.example.com` with your actual domain. Ensure the DNS record points to the public IP of this server before starting the production configuration. Keep the existing database and secret settings in your environment files.
-
-**Validate and start the production deployment**
-
-Run these commands from the repository root:
+Create the certificate directory:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.production.yml config --quiet
-docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
-docker compose -f docker-compose.yml -f docker-compose.production.yml ps
+mkdir -p certs
 ```
 
-Open `https://your-domain.example/` using your configured domain.
+Place the certificate chain in `certs/fullchain.pem` and the matching private key in `certs/privkey.pem`. For a self-signed certificate, the certificate file contains the self-signed certificate.
 
-For the full setup, verification, backup, and rollback procedure, read [Production HTTPS Deployment](docs/production-https-deployment.md).
+Protect the private key and never commit certificates containing private keys, passwords, or other secrets to GitHub. Keep the certificate and key readable by the Nginx container.
 
-**Important:** The production configuration uses `docker-compose.production.yml` and `Caddyfile.production`. Do not use the LAN test configuration, `docker-compose.https.yml`, for a public production deployment. Do not expose PostgreSQL or FastAPI directly to the public internet. Never commit real environment files, passwords, Telegram tokens, or application secrets to GitHub.
+**Validate and start HTTPS**
+
+From the repository root, run:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tls.yml config --quiet
+docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.tls.yml ps
+```
+
+Check the Nginx configuration:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tls.yml exec nginx nginx -t
+```
+
+Open the application over HTTPS:
+
+```text
+https://SERVER_ADDRESS/
+```
+
+For a LAN deployment, use the configured hostname or IP address. For a public deployment, use your domain name.
+
+The TLS Compose override publishes ports 80 and 443 and configures Nginx to redirect HTTP to HTTPS. Certificate renewal and replacement must be managed by the administrator according to the selected certificate provider.
+
+For the full deployment, verification, backup, and rollback procedure, read [Production HTTPS Deployment](docs/production-https-deployment.md).
+
+**Important:** Do not expose PostgreSQL or FastAPI directly to the public internet. Never commit real environment files, private keys, passwords, Telegram tokens, or application secrets to GitHub.
 
 ### 7. Verify the installation
 
-- Confirm that the required Docker services are healthy.
+- Confirm the required Docker services are healthy.
 - Open the dashboard and sign in with the initial administrator account.
-- Verify certificate monitoring.
-- Configure and test Telegram notifications if you plan to use them.
-- For a public deployment, verify that the site loads over HTTPS and that HTTP redirects to HTTPS.
+- Verify certificate monitoring and Telegram notifications, if configured.
+- For HTTPS deployments, verify that HTTPS loads successfully and HTTP redirects to HTTPS.
+- Verify that clients trust the configured certificate, especially on private LAN deployments.
 
 ## Production readiness
 
-A successful Docker startup does not by itself establish production readiness. Before serving real users, review authentication, HTTPS, firewall access, secret management, dependency updates, and operational monitoring. Establish a database backup schedule and test restoring a backup. Keep PostgreSQL and FastAPI ports unpublished on the public host.
+A successful Docker startup does not by itself establish production readiness. Before serving real users, review authentication, HTTPS, firewall access, certificate renewal, secret management, dependency updates, and operational monitoring. Establish a database backup schedule and test restoring a backup. Keep PostgreSQL and FastAPI ports unpublished on the public host.
